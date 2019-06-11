@@ -19,7 +19,7 @@ import java.util.List;
  */
 public class KuduTest {
     private static final Double DEFAULT_DOUBLE = 12.345;
-    private static final String KUDU_MASTERS = System.getProperty("kuduMasters", "uf003:7051");
+    private static final String KUDU_MASTERS = System.getProperty("kuduMasters", "192.168.254.10:7051");
 
     private KuduClient client;
 

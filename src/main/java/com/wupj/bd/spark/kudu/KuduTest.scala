@@ -1,17 +1,49 @@
 package com.wupj.bd.spark
 
+import java.util.concurrent.Executors
+
 import org.apache.kudu.client.CreateTableOptions
 import org.apache.kudu.spark.kudu.KuduContext
 import org.apache.spark.sql.SparkSession
+
 import collection.JavaConverters._
 
 object KuduTest {
   def main(args: Array[String]): Unit = {
     //    tableResult()
-    count
+//    val threadService = Executors.newFixedThreadPool(2)
+    println("开始统计")
+    countKudu()
+
+    /**
+      * ------------------------------------
+      *  26481203    26034
+      * ------------------------------------
+      * 27481203     16661
+      * ------------------------------------
+      *
+      * ------------------------------------
+      */
+    /*
+    threadService.execute(new Runnable {
+      override def run(): Unit = {
+        println("启动Phoenix统计")
+        countPhoenix
+      }
+    })
+*/
+    /*
+        threadService.execute(new Runnable {
+          override def run(): Unit = {
+            println("启动Kudu统计")
+            countKudu
+          }
+        })
+    */
   }
 
-  def count(): Unit = {
+  def countKudu(): Unit = {
+    val start = System.currentTimeMillis()
     val spark = SparkSession.builder().master("local[*]").getOrCreate()
     val df = spark.read.options(Map(
       "kudu.master" -> "10.188.181.73:7051",
@@ -19,8 +51,24 @@ object KuduTest {
     )).format("kudu")
       .load()
     df.createOrReplaceTempView("YYTERP_SCC_SALEINFO")
-    df.sqlContext.sql("select count(1) from YYTERP_SCC_SALEINFO " ).show()
+    df.sqlContext.sql("select count(1) from YYTERP_SCC_SALEINFO ").show()
+    println((System.currentTimeMillis() - start))
     spark.stop()
+  }
+
+  def countPhoenix(): Unit = {
+    //  457722  YYTERP_SCC_SALEINFO_LZO  1.25
+    //  401458  YYTERP_SCC_SALEINFO_NO_COMPRESSION  2.91
+    //  423219  YYTERP_SCC_SALEINFO   1.45
+    //
+    val start = System.currentTimeMillis()
+    val spark = SparkSession.builder().master("local[*]").getOrCreate()
+    var data = spark.sqlContext.read.format("org.apache.phoenix.spark")
+      .option("table", "YYTERP_SCC_SALEINFO_GZ").option("zkUrl", "uf001:2181")
+      .load();
+    data.createOrReplaceTempView("YYTERP_SCC_SALEINFO_GZ")
+    data.sqlContext.sql("select count(1) from YYTERP_SCC_SALEINFO_GZ").show()
+    println("Phoenix:", (System.currentTimeMillis() - start))
   }
 
   def tableResult(): Unit = {
@@ -46,7 +94,7 @@ object KuduTest {
     ))
       .format("kudu")
       .load()
-  //  df.select("NNUM", "CYEAR", "VINSTITUTIONCODE").filter("NNUM > 300").show(20)
+    //  df.select("NNUM", "CYEAR", "VINSTITUTIONCODE").filter("NNUM > 300").show(20)
     // 使用spark sql进行统计
     df.createOrReplaceTempView("YYTERP_SCC_SALEINFO")
     spark.sqlContext.sql("select count(1) from YYTERP_SCC_SALEINFO").show()
